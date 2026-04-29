@@ -30,7 +30,6 @@
     }
     .header-left { display: flex; align-items: center; gap: 0.8rem; }
     
-    /* Logo Styling */
     .logo-container img {
       height: 40px;
       width: auto;
@@ -70,6 +69,22 @@
       animation: fadeIn 0.3s ease;
     }
     
+    .weather-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+        margin-top: 8px;
+        font-size: 0.8rem;
+        color: var(--text);
+    }
+
+    .weather-badge {
+        background: rgba(45, 137, 239, 0.08);
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(45, 137, 239, 0.2);
+    }
+
     .toggle-view-btn {
       width: 100%; padding: 10px; margin-top: 15px; background: transparent; 
       border: 2px dashed var(--border); color: var(--accent); border-radius: 10px;
@@ -237,13 +252,31 @@ async function planRoute() {
 
             const wRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${p[1]}&lon=${p[0]}&appid=${WEATHER_KEY}&units=metric`);
             const w = await wRes.json();
+            
+            const temp = Math.round(w.main.temp);
+            const humidity = w.main.humidity;
+            const clouds = w.weather[0].description;
+            const weatherIcon = `https://openweathermap.org/img/wn/${w.weather[0].icon}.png`;
+            
             const seatAdvice = getSeatAdvice(bearing, arrivalTime);
 
             const card = document.createElement('div');
             card.className = 'segment-card';
             card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; font-weight:700;"><span>📍 ${placeName}</span><span>${Math.round(w.main.temp)}°C</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700;">
+                    <span>📍 ${placeName}</span>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <img src="${weatherIcon}" width="30" height="30" alt="icon">
+                        <span>${temp}°C</span>
+                    </div>
+                </div>
                 <div style="font-size:0.8rem; color:var(--muted); margin:4px 0;">🕒 Arrival: ${arrivalTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                
+                <div class="weather-info">
+                    <div class="weather-badge">☁️ ${clouds.charAt(0).toUpperCase() + clouds.slice(1)}</div>
+                    <div class="weather-badge">💧 Humidity: ${humidity}%</div>
+                </div>
+
                 <div class="seat-advice">${seatAdvice}</div>
             `;
             container.appendChild(card);
