@@ -7,6 +7,10 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Flatpickr CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
 
   <style>
     :root {
@@ -22,11 +26,11 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; transition: 0.3s; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
     header { 
       padding: 0.8rem 1.5rem; display: flex; align-items: center; justify-content: space-between; 
-      border-bottom: 1px solid var(--border); background: var(--header-bg); z-index: 1000; flex-shrink: 0;
+      border-bottom: 1px solid var(--border); background: var(--header-bg); z-index: 1000;
     }
 
     .layout { display: grid; grid-template-columns: 400px 1fr; flex: 1; overflow: hidden; position: relative; }
@@ -34,31 +38,37 @@
     .sidebar { 
       background: var(--surface); border-right: 1px solid var(--border); 
       overflow-y: auto; padding: 0 1.2rem 1.2rem 1.2rem; display: flex; flex-direction: column; 
-      scroll-behavior: smooth;
     }
 
-    /* Fixed Header inside Sidebar */
-    .form-wrapper { position: sticky; top: 0; background: var(--surface); padding: 1.2rem 0; z-index: 100; transition: all 0.4s ease; }
-    .form-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; transition: all 0.4s ease; }
+    .form-wrapper { position: sticky; top: 0; background: var(--surface); padding: 1.2rem 0; z-index: 100; }
+    .form-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; }
 
-    /* --- মোবাইল ডাইনামিক লেআউট ফিক্স --- */
+    .autocomplete-container { position: relative; width: 100%; }
+    .autocomplete-items {
+      position: absolute; border: 1px solid var(--border); border-top: none;
+      z-index: 1001; top: 100%; left: 0; right: 0;
+      background: var(--surface); border-radius: 0 0 8px 8px;
+      max-height: 200px; overflow-y: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .autocomplete-item { padding: 10px; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+    .autocomplete-item:hover { background-color: var(--card); color: var(--accent); }
+
+    .hidden { display: none !important; }
+    #search-again-btn { margin-bottom: 10px; background: var(--accent2); }
+
     @media (max-width: 850px) {
-      .layout { grid-template-columns: 1fr; grid-template-rows: 45vh 55vh; transition: grid-template-rows 0.4s ease; }
-      
-      /* স্ক্রল করলে ম্যাপ ছোট হওয়ার জন্য ক্লাস */
-      .layout.scrolled { grid-template-rows: 20vh 80vh; }
-      
+      .layout { grid-template-columns: 1fr; grid-template-rows: 40vh 60vh; }
       .sidebar { order: 2; border-right: none; border-top: 1px solid var(--border); }
-      #map { order: 1; height: 100% !important; transition: height 0.4s ease; }
-
-      /* স্ক্রল করলে সার্চ বক্স ছোট হওয়া */
-      .scrolled .form-card { padding: 0.5rem; }
-      .scrolled .form-card input { margin-bottom: 0.3rem; padding: 0.4rem; font-size: 0.75rem; }
-      .scrolled .btn { padding: 0.5rem; font-size: 0.8rem; }
+      #map { order: 1; height: 100% !important; }
     }
 
     input { width: 100%; padding: 0.7rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); margin-bottom: 0.7rem; font-size: 0.85rem; outline: none; }
-    .btn { width: 100%; padding: 0.8rem; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+    .btn { width: 100%; padding: 0.8rem; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.3s; }
+
+    /* Overall Summary Card */
+    .overall-card { background: linear-gradient(135deg, var(--accent), #1a6dca); color: white; padding: 1.2rem; border-radius: var(--radius); margin-bottom: 15px; box-shadow: 0 4px 12px rgba(45,137,239,0.3); }
+    .overall-card h4 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; opacity: 0.9; }
+    .overall-card p { font-size: 1.1rem; font-weight: 700; }
 
     .segment-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; margin-bottom: 12px; }
     .segment-card.active { border-left: 6px solid var(--accent); background: var(--surface); box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-color: var(--accent); }
@@ -84,12 +94,22 @@
 <div class="layout" id="main-layout">
   <div class="sidebar" id="sidebar">
     <div class="form-wrapper">
-        <div class="form-card">
-          <input type="text" id="origin" placeholder="Start" value="Dhaka" />
-          <input type="text" id="destination" placeholder="Destination" value="Panchagarh" />
-          <input type="datetime-local" id="depart-time" />
+        <div id="search-form-container" class="form-card">
+          <div class="autocomplete-container">
+            <input type="text" id="origin" placeholder="Start Location" value="Dhaka" autocomplete="off" />
+            <div id="origin-list" class="autocomplete-items"></div>
+          </div>
+          
+          <div class="autocomplete-container">
+            <input type="text" id="destination" placeholder="Destination" value="Panchagarh" autocomplete="off" />
+            <div id="destination-list" class="autocomplete-items"></div>
+          </div>
+
+          <input type="text" id="depart-time" placeholder="📅 Select Departure Time" style="cursor: pointer;" readonly />
+          
           <button class="btn" onclick="planRoute()">SEARCH ROUTE</button>
         </div>
+        <button id="search-again-btn" class="btn hidden" onclick="resetSearch()">🔄 Search Again</button>
     </div>
     
     <div id="list-container">
@@ -103,6 +123,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <script>
 const ORS_KEY     = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjQ5M2VkZTFmYTUyNjQwYzdhMGE2YjhkZTA0ZTlhNzliIiwiaCI6Im11cm11cjY0In0=';
@@ -116,105 +137,163 @@ let currentTheme = 'light';
 let markers = [];
 let routeLayer = null;
 
-/* --- ডাইনামিক স্ক্রল ইফেক্ট --- */
-const sidebar = document.getElementById('sidebar');
-const layout = document.getElementById('main-layout');
-
-sidebar.addEventListener('scroll', () => {
-    if (window.innerWidth <= 850) {
-        if (sidebar.scrollTop > 50) {
-            layout.classList.add('scrolled');
-        } else {
-            layout.classList.remove('scrolled');
-        }
-    }
+const fp = flatpickr("#depart-time", {
+    enableTime: true,
+    dateFormat: "Y-m-d h:i K",
+    defaultDate: new Date(),
+    minDate: "today"
 });
+
+function resetSearch() {
+    document.getElementById('search-form-container').classList.remove('hidden');
+    document.getElementById('search-again-btn').classList.add('hidden');
+}
+
+function showResultMode() {
+    if (window.innerWidth <= 850) {
+        document.getElementById('search-form-container').classList.add('hidden');
+        document.getElementById('search-again-btn').classList.remove('hidden');
+    }
+}
+
+function setupAutocomplete(inputId, listId) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+    input.addEventListener('input', async function() {
+        const query = this.value;
+        if (query.length < 3) { list.innerHTML = ""; return; }
+        try {
+            const res = await fetch(`https://api.openrouteservice.org/geocode/autocomplete?api_key=${ORS_KEY}&text=${encodeURIComponent(query)}&size=5`);
+            const data = await res.json();
+            list.innerHTML = "";
+            data.features.forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.innerText = f.properties.label;
+                item.onclick = () => { input.value = f.properties.label; list.innerHTML = ""; };
+                list.appendChild(item);
+            });
+        } catch (e) {}
+    });
+    document.addEventListener('click', (e) => { if (e.target !== input) list.innerHTML = ""; });
+}
+
+setupAutocomplete('origin', 'origin-list');
+setupAutocomplete('destination', 'destination-list');
 
 function toggleTheme() {
     const body = document.body;
     const btn = document.getElementById('theme-btn');
     if(currentTheme === 'light') {
-        body.setAttribute('data-theme', 'dark');
-        btn.innerHTML = '☀️ Light';
-        map.removeLayer(lightLayer); darkLayer.addTo(map);
-        currentTheme = 'dark';
+        body.setAttribute('data-theme', 'dark'); btn.innerHTML = '☀️ Light';
+        map.removeLayer(lightLayer); darkLayer.addTo(map); currentTheme = 'dark';
     } else {
-        body.removeAttribute('data-theme');
-        btn.innerHTML = '🌙 Dark';
-        map.removeLayer(darkLayer); lightLayer.addTo(map);
-        currentTheme = 'light';
+        body.removeAttribute('data-theme'); btn.innerHTML = '🌙 Dark';
+        map.removeLayer(darkLayer); lightLayer.addTo(map); currentTheme = 'light';
     }
 }
-
-window.onload = () => {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  document.getElementById('depart-time').value = now.toISOString().slice(0, 16);
-};
 
 async function planRoute() {
     const origin = document.getElementById('origin').value;
     const dest = document.getElementById('destination').value;
-    const startTime = new Date(document.getElementById('depart-time').value);
-    const container = document.getElementById('list-container');
+    const startTimeStr = document.getElementById('depart-time').value;
+    const startTime = new Date(startTimeStr);
     
-    container.innerHTML = "<p style='text-align:center; padding:20px;'>Calculating...</p>";
+    if(!origin || !dest || !startTimeStr) return;
+
+    const container = document.getElementById('list-container');
+    container.innerHTML = "<p style='text-align:center; padding:20px;'>Calculating Route Details...</p>";
 
     try {
         const gS = await fetch(`https://api.openrouteservice.org/geocode/search?api_key=${ORS_KEY}&text=${encodeURIComponent(origin)}&size=1`).then(r=>r.json());
         const gE = await fetch(`https://api.openrouteservice.org/geocode/search?api_key=${ORS_KEY}&text=${encodeURIComponent(dest)}&size=1`).then(r=>r.json());
+        
         const res = await fetch(`https://api.openrouteservice.org/v2/directions/driving-car?api_key=${ORS_KEY}&start=${gS.features[0].geometry.coordinates.join(',')}&end=${gE.features[0].geometry.coordinates.join(',')}`).then(r=>r.json());
         
         const routeData = res.features[0];
         const points = routeData.geometry.coordinates;
         const summary = routeData.properties.summary;
+        const distanceKm = summary.distance / 1000;
 
+        let stepsCount = Math.max(2, Math.round((distanceKm / 100) * 3));
+        
         if (routeLayer) map.removeLayer(routeLayer);
         markers.forEach(m => map.removeLayer(m));
         markers = [];
-        container.innerHTML = "";
+        
+        // --- Calculate Overall Seat Advice ---
+        const startHour = startTime.getHours();
+        const durationH = Math.round(summary.duration / 3600);
+        const endHour = (startHour + durationH) % 24;
+        
+        let overallAdvice = "";
+        if (startHour >= 5 && startHour < 11) {
+            overallAdvice = "Left Side Seat (Stay away from Morning Sun)";
+        } else if (startHour >= 12 && startHour < 17) {
+            overallAdvice = "Right Side Seat (Avoid Scorching Afternoon Sun)";
+        } else if (startHour >= 18 || startHour < 5) {
+            overallAdvice = "Any Seat (Night journey, no sun issues!)";
+        } else {
+            overallAdvice = "Prefer Left Side (General recommendation)";
+        }
+
+        container.innerHTML = `
+            <div class="overall-card">
+                <h4>Best Seat for this Trip:</h4>
+                <p>⭐ ${overallAdvice}</p>
+                <div style="font-size:0.75rem; margin-top:8px; opacity:0.8;">
+                    Total: ${distanceKm.toFixed(1)} km | ~${durationH}h journey
+                </div>
+            </div>
+        `;
 
         routeLayer = L.geoJSON(routeData, { style: { color: '#e74c3c', weight: 5 } }).addTo(map);
         map.fitBounds(routeLayer.getBounds(), { padding: [30, 30] });
 
-        const steps = 8;
-        for(let i=0; i < steps; i++) {
-            const idx = Math.floor((points.length - 1) * (i / (steps - 1)));
-            const p = points[idx];
-            const w = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${p[1]}&lon=${p[0]}&appid=${WEATHER_KEY}&units=metric`).then(r=>r.json());
-            const n = await fetch(`https://api.openrouteservice.org/geocode/reverse?api_key=${ORS_KEY}&point.lat=${p[1]}&point.lon=${p[0]}&size=1`).then(r=>r.json());
-            
-            const arrival = new Date(startTime.getTime() + (summary.duration / (steps - 1)) * i * 1000);
-            const timeStr = arrival.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        showResultMode();
 
-            const data = {
-                place: n.features[0]?.properties.county || n.features[0]?.properties.name || "Checkpoint",
-                time: timeStr, temp: Math.round(w.main.temp), desc: w.weather[0].description,
-                humidity: w.main.humidity, icon: w.weather[0].icon,
-                seat: (arrival.getHours() >= 6 && arrival.getHours() < 12) ? "Left Side Shaded" : (arrival.getHours() >= 12 && arrival.getHours() < 18) ? "Right Side Shaded" : "Night: Any seat ok"
-            };
+        for(let i=0; i < stepsCount; i++) {
+            const idx = Math.floor((points.length - 1) * (i / (stepsCount - 1)));
+            const coord = points[idx];
+            
+            const [weatherRes, geoRes] = await Promise.all([
+                fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${coord[1]}&lon=${coord[0]}&appid=${WEATHER_KEY}&units=metric`).then(r=>r.json()),
+                fetch(`https://api.openrouteservice.org/geocode/reverse?api_key=${ORS_KEY}&point.lat=${coord[1]}&point.lon=${coord[0]}&size=1`).then(r=>r.json())
+            ]);
+
+            const arrivalTime = new Date(startTime.getTime() + (summary.duration / (stepsCount - 1)) * i * 1000);
+            const timeStr = arrivalTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            const p = geoRes.features[0]?.properties;
+            const districtName = p?.county || p?.state_district || p?.state || "Unknown District";
 
             const card = document.createElement('div');
             card.className = 'segment-card';
             card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700;"><span>📍 ${data.place}</span><span>${data.temp}°C</span></div>
-                <div style="font-size:0.8rem; color:var(--muted); margin:4px 0;">🕒 Arrival: ${timeStr}</div>
-                <div class="weather-info"><div class="weather-badge">☁️ ${data.desc}</div><div class="weather-badge">💧 Hum: ${data.humidity}%</div></div>
-                <div class="seat-advice">🪟 ${data.seat}</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; font-weight:700;">
+                  <span style="flex:1;">📍 District: ${districtName}</span>
+                  <span style="color:var(--accent); margin-left:10px;">${Math.round(weatherRes.main.temp)}°C</span>
+                </div>
+                <div style="font-size:0.8rem; color:var(--muted); margin:4px 0;">🕒 Reach at: ${timeStr}</div>
+                <div class="weather-info">
+                  <div class="weather-badge">☁️ ${weatherRes.weather[0].description}</div>
+                  <div class="weather-badge">💧 Hum: ${weatherRes.main.humidity}%</div>
+                </div>
             `;
 
-            const marker = L.circleMarker([p[1], p[0]], {radius: 7, color: '#fff', weight: 2, fillColor: '#2d89ef', fillOpacity: 1}).addTo(map);
+            const marker = L.circleMarker([coord[1], coord[0]], {radius: 7, color: '#fff', weight: 2, fillColor: '#2d89ef', fillOpacity: 1}).addTo(map);
             card.onclick = () => {
                 document.querySelectorAll('.segment-card').forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-                map.panTo([p[1], p[0]]);
+                card.classList.add('active'); map.flyTo([coord[1], coord[0]], 11);
             };
             container.appendChild(card);
             markers.push(marker);
         }
-    } catch (e) { container.innerHTML = "Error!"; }
+    } catch (e) { 
+        container.innerHTML = "<p style='color:red; text-align:center;'>Error loading route.</p>"; 
+        resetSearch();
+    }
 }
 </script>
 </body>
 </html>
-
